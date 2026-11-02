@@ -1,13 +1,14 @@
 from datetime import datetime
 import csv
 import io
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'votre_cle_secrete_tres_securisee' # À changer en production
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///yoga_studio.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.getcwd(), 'yoga_studio.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -21,6 +22,8 @@ class User(db.Model):
     nom = db.Column(db.String(100), nullable=True)
     prenom = db.Column(db.String(100), nullable=True)
     adresse = db.Column(db.String(200), nullable=True)
+    npa = db.Column(db.String(20), nullable=True)
+    ville = db.Column(db.String(100), nullable=True)
     email = db.Column(db.String(120), nullable=True)
     telephone = db.Column(db.String(20), nullable=True)
     registrations = db.relationship('Registration', backref='client', lazy=True)
@@ -97,6 +100,8 @@ def register():
             nom=request.form['nom'],
             prenom=request.form['prenom'],
             adresse=request.form['adresse'],
+            npa=request.form['npa'],
+            ville=request.form['ville'],
             email=request.form['email'],
             telephone=request.form['telephone']
         )
@@ -119,10 +124,8 @@ def client_dashboard():
     
     courses = Course.query.all()
     user_id = session['user_id']
-    # Récupérer les IDs des cours auxquels le client est déjà inscrit
     registered_course_ids = [r.course_id for r in Registration.query.filter_by(user_id=user_id).all()]
     
-    # Calculer les places restantes pour chaque cours
     course_data = []
     for c in courses:
         nb_inscrits = len(c.registrations)
@@ -146,23 +149,19 @@ def book_course(course_id):
     user_id = session['user_id']
     course = Course.query.get_or_404(course_id)
     
-    # Vérifier si déjà inscrit
     existing = Registration.query.filter_by(user_id=user_id, course_id=course_id).first()
     if existing:
         flash('Vous êtes déjà inscrit à ce cours.', 'warning')
         return redirect(url_for('client_dashboard'))
         
-    # Vérifier les places
     if len(course.registrations) >= course.capacite:
         flash('Désolé, ce cours est complet.', 'danger')
         return redirect(url_for('client_dashboard'))
         
-    # Inscription
     new_reg = Registration(user_id=user_id, course_id=course_id)
     db.session.add(new_reg)
     db.session.commit()
     
-    # Simulation/Envoi d'email (Ici vous intégrerez votre service d'envoi d'email réel type Flask-Mail ou SendGrid)
     user = User.query.get(user_id)
     print(f"EMAIL À L'ADMIN : Le client {user.prenom} {user.nom} s'est inscrit au cours '{course.titre}'.")
     print(f"EMAIL AU CLIENT ({user.email}) : Confirmation d'inscription pour le cours '{course.titre}' le {course.date_heure}.")
@@ -200,8 +199,7 @@ def export_csv():
         
     si = io.StringIO()
     cw = csv.writer(si)
-    # En-tête CSV
-    cw.writerow(['ID Inscription', 'Nom Client', 'Prénom Client', 'Email', 'Téléphone', 'Cours', 'Date du cours', 'Lieu'])
+    cw.writerow(['ID Inscription', 'Nom Client', 'Prénom Client', 'Email', 'Téléphone', 'Adresse', 'NPA', 'Ville', 'Cours', 'Date du cours', 'Lieu'])
     
     registrations = Registration.query.all()
     for r in registrations:
@@ -211,6 +209,9 @@ def export_csv():
             r.client.prenom,
             r.client.email,
             r.client.telephone,
+            r.client.adresse,
+            r.client.npa,
+            r.client.ville,
             r.course.titre,
             r.course.date_heure.strftime('%Y-%m-%d %H:%M'),
             r.course.lieu
