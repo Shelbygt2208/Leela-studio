@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Espace Client - Studio de Yoga</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">🧘 Studio Yoga</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Déconnexion</a>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <h2 class="mb-4">Cours disponibles</h2>
+        <div class="row">
+            {% for item in course_data %}
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">{{ item.course.titre }}</h5>
+                        <p class="card-text mb-1"><strong>📅 Date :</strong> {{ item.course.date_heure.strftime('%d/%m/%Y à %H:%M') }}</p>
+                        <p class="card-text mb-1"><strong>⏱️ Durée :</strong> {{ item.course.duree }}</p>
+                        <p class="card-text mb-3"><strong>📍 Lieu :</strong> {{ item.course.lieu }}</p>
+                        
+                        <hr>
+                        <p class="mb-1"><strong>Places :</strong> {{ item.places_restantes }} disponible(s) sur {{ item.course.capacite }}</p>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar {% if item.places_restantes == 0 %}bg-danger{% else %}bg-success{% endif %}" 
+                                 role="progressbar" style="width: {{ item.pourcentage }}%;">
+                                {{ item.nb_inscrits }} / {{ item.course.capacite }} inscrits
+                            </div>
+                        </div>
+
+                        {% if item.is_registered %}
+                            <span class="badge bg-secondary w-100 py-2">Vous êtes inscrit</span>
+                        {% elif item.places_restantes <= 0 %}
+                            <button class="btn btn-secondary w-100" disabled>Complet</button>
+                        {% else %}
+                            <form action="{{ url_for('book_course', course_id=item.course.id) }}" method="POST">
+                                <button type="submit" class="btn btn-primary w-100">S'inscrire</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
